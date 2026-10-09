@@ -1,0 +1,135 @@
+{
+  "name": "IntelFlow Lite – Shopify Price Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "={{ $json[\"Product URL\"] }}.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [432, 16],
+      "name": "HTTP Request",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const sheetRows = $('Read Products').all();\nconst responses = $input.all();\n\nconst results = [];\n\nresponses.forEach((res, i) => {\n  const row = sheetRows[i] ? sheetRows[i].json : {};\n  const data = res.json || {};\n  const product = data.product || null;\n\n  if (!product) return;\n\n  const variant = (product.variants && product.variants.length > 0)\n    ? product.variants[0]\n    : {};\n\n  const newPrice = variant.price !== undefined ? Number(variant.price) : null;\n\n  const rawOld = row['Last Price'];\n  const oldPrice = (rawOld === undefined || rawOld === null || rawOld === '')\n    ? null\n    : Number(rawOld);\n\n  const priceChanged = (oldPrice === null) ? true : (newPrice !== oldPrice);\n\n  results.push({\n    json: {\n      'Product Title': row['Product Name'] || product.title || 'Unknown',\n      'Price': newPrice,\n      'Product URL': row['Product URL'] || '',\n      'Checked At': new Date().toISOString(),\n      'Old Price': oldPrice,\n      'Price Changed': priceChanged\n    }\n  });\n});\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [656, 16],
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "__rl": true, "mode": "id", "value": "YOUR_GOOGLE_SHEET_ID" },
+        "sheetName": { "__rl": true, "value": "gid=0", "mode": "list" },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {
+            "Product Title": "={{ $json['Product Title'] }}",
+            "Price": "={{ $json.Price }}",
+            "Product URL": "={{ $json['Product URL'] }}",
+            "Checked At": "={{ $json['Checked At'] }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [1104, 16],
+      "name": "Append row in sheet"
+    },
+    {
+      "parameters": {
+        "documentId": { "__rl": true, "value": "YOUR_GOOGLE_SHEET_ID", "mode": "id" },
+        "sheetName": { "__rl": true, "mode": "list" },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [208, 16],
+      "name": "Read Products"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
+          "conditions": [
+            {
+              "leftValue": "={{ $json['Price Changed'] }}",
+              "rightValue": false,
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [816, 160],
+      "name": "Price Changed?"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": { "__rl": true, "value": "YOUR_GOOGLE_SHEET_ID", "mode": "id" },
+        "sheetName": { "__rl": true, "mode": "list" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Product URL": "={{ $json['Product URL'] }}",
+            "Last Price": "={{ $json.Price }}",
+            "Last Checked": "={{ $json['Checked At'] }}"
+          },
+          "matchingColumns": ["Product URL"],
+          "schema": []
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [1360, 128],
+      "name": "Update Last Price"
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "=🚨 {{ $json['Old Price'] === null ? 'NEW PRODUCT TRACKED' : 'PRICE CHANGE DETECTED' }}\n🍪 Product: {{ $json['Product Title'] }}\n💰 Old price: {{ $json['Old Price'] === null ? '—' : '$' + $json['Old Price'] }}\n💰 New price: ${{ $json.Price }}\n🔗 {{ $json['Product URL'] }}\n🕒 {{ $json['Checked At'] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [1360, 288],
+      "name": "Discord Alert"
+    },
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours" }] }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [-16, 16],
+      "name": "Schedule Trigger"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request": { "main": [[{ "node": "Code in JavaScript", "type": "main", "index": 0 }]] },
+    "Code in JavaScript": { "main": [[{ "node": "Price Changed?", "type": "main", "index": 0 }, { "node": "Append row in sheet", "type": "main", "index": 0 }]] },
+    "Read Products": { "main": [[{ "node": "HTTP Request", "type": "main", "index": 0 }]] },
+    "Price Changed?": { "main": [[{ "node": "Update Last Price", "type": "main", "index": 0 }, { "node": "Discord Alert", "type": "main", "index": 0 }]] },
+    "Update Last Price": { "main": [[]] },
+    "Schedule Trigger": { "main": [[{ "node": "Read Products", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1", "binaryMode": "separate" },
+  "tags": []
+}
