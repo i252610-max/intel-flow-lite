@@ -50,44 +50,6 @@ Node Context Blindness: When wiring the Discord alert after the Google Sheets "U
 Infinite Alert Loops: If a database cell is blank, null !== undefined logic can cause a system to think the price "changed" on every single run. I implemented strict type-checking in the JavaScript node to seed the database cleanly on the first run.
 
 
----
 
-### 3. What to put in the `/docs` folder
 
-Create a folder named `docs` in your project directory. Recruiters love visual proof. Take screenshots of your working project and save them in this folder:
 
-1. **`workflow-canvas.png`**
-   - *What it is:* A screenshot of your n8n canvas showing all the nodes connected.
-   - *Why:* Proves you actually built it and understand workflow logic.
-2. **`discord-alert.png`**
-   - *What it is:* A screenshot of the Discord message showing a successful "PRICE CHANGE DETECTED" alert.
-   - *Why:* Proves the end-to-end integration works.
-3. **`google-sheet-schema.png`**
-   - *What it is:* A screenshot of your Google Sheet showing the `Products` tab and the `Logs` tab with a few rows of dummy data.
-   - *Why:* Shows you understand database structuring and state management.
-
----
-
-### 4. How to Push to GitHub
-
-Open your terminal (or GitHub Desktop) in your project folder and run these exact commands:
-
-```bash
-# Initialize the repository (if you haven't already)
-git init
-
-# Add all your files (workflow.json, README.md, and the docs folder)
-git add .
-
-# Commit with a professional message
-git commit -m "feat: Initial release of IntelFlow Lite Shopify Price Monitor"
-
-# Rename branch to main (standard practice)
-git branch -M main
-
-# Connect to your GitHub repository (Replace YOUR_USERNAME and YOUR_REPO)
-git remote add origin https://github.com/i252610-max/intel-flow-lite.git
-
-# Push the code to GitHub
-git push -u origin main
-```
